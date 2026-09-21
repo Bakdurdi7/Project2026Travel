@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sayohat Kuzatuvchi</title>
+
+    <!-- Leaflet xarita kutubxonasi -->
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<header class="topbar">
+    <h1>🚶 Sayohat Kuzatuvchi</h1>
+    <p id="statusLine">Joylashuv aniqlanmoqda...</p>
+</header>
+
+<main class="layout">
+    <!-- Chap panel: boshqaruv -->
+    <section class="panel">
+        <div class="stats">
+            <div class="stat">
+                <span class="label">Masofa</span>
+                <span class="value" id="outDistance">0 m</span>
+            </div>
+            <div class="stat">
+                <span class="label">Vaqt</span>
+                <span class="value" id="outTime">00:00</span>
+            </div>
+            <div class="stat">
+                <span class="label">Tezlik</span>
+                <span class="value" id="outSpeed">0.0 km/s</span>
+            </div>
+            <div class="stat">
+                <span class="label">Qadam</span>
+                <span class="value" id="outSteps">0</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="btnStart" class="btn btn-start">▶ Boshlash</button>
+            <button id="btnStop" class="btn btn-stop" disabled>■ Tugatish</button>
+            <button id="btnReset" class="btn btn-ghost">↺ Tozalash</button>
+        </div>
+
+        <label class="weight-field">
+            Vazningiz (kg) — kaloriya aniqligi uchun:
+            <input type="number" id="weightInput" value="70" min="25" max="250" step="0.5" />
+        </label>
+
+        <p class="hint" id="hint">
+            GPS aniqligi uchun ochiq havoda va brauzerda joylashuvga ruxsat berilgan bo'lishi kerak.
+        </p>
+    </section>
+
+    <!-- O'ng: xarita -->
+    <section class="map-wrap">
+        <div id="map"></div>
+    </section>
+</main>
+
+<!-- Modal: natija -->
+<div class="modal-backdrop" id="modal" hidden>
+    <div class="modal">
+        <h2>🎯 Yurish natijasi</h2>
+        <div id="resultGrid" class="result-grid"></div>
+
+        <canvas id="shareCanvas" width="1080" height="1350" class="share-canvas"></canvas>
+        <button id="btnDownload" class="btn btn-start">🖼 Rasm sifatida yuklab olish</button>
+
+        <div class="modal-actions">
+            <button id="btnSave" class="btn btn-ghost">💾 Bazaga saqlash</button>
+            <button id="btnClose" class="btn btn-stop">Yopish.</button>
+        </div>
+        <p class="save-msg" id="saveMsg"></p>
+    </div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Supabase JS klient -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
