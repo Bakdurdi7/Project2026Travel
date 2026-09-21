@@ -2,12 +2,14 @@
 <html lang="uz">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Sayohat Kuzatuvchi</title>
 
-    <!-- Leaflet xarita kutubxonasi -->
+    <!-- ✅ Leaflet CSS — TOZA URL -->
     <link rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+          href="[unpkg.com](https://unpkg.com/leaflet@1.9.4/dist/leaflet.css)"
+          crossorigin="" />
+
     <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -17,7 +19,6 @@
 </header>
 
 <main class="layout">
-    <!-- Chap panel: boshqaruv -->
     <section class="panel">
         <div class="stats">
             <div class="stat">
@@ -54,13 +55,11 @@
         </p>
     </section>
 
-    <!-- O'ng: xarita -->
     <section class="map-wrap">
         <div id="map"></div>
     </section>
 </main>
 
-<!-- Modal: natija -->
 <div class="modal-backdrop" id="modal" hidden>
     <div class="modal">
         <h2>🎯 Yurish natijasi</h2>
@@ -71,16 +70,18 @@
 
         <div class="modal-actions">
             <button id="btnSave" class="btn btn-ghost">💾 Bazaga saqlash</button>
-            <button id="btnClose" class="btn btn-stop">Yopish.</button>
+            <button id="btnClose" class="btn btn-stop">Yopish</button>
         </div>
         <p class="save-msg" id="saveMsg"></p>
     </div>
 </div>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<!-- Supabase JS klient -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- ✅ Leaflet JS — TOZA URL -->
+<script src="[unpkg.com](https://unpkg.com/leaflet@1.9.4/dist/leaflet.js)" crossorigin=""></script>
+
+<!-- ✅ Supabase JS — TO'G'RI URL -->
+<script src="[cdn.jsdelivr.net](https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2)"></script>
+
 <script src="js/app.js"></script>
 </body>
 </html>
