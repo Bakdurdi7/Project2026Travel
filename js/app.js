@@ -1,33 +1,51 @@
 /* ============================================================
-   Sayohat Kuzatuvchi — app.js
+   Sayohat Kuzatuvchi — app.js (to'liq ishchi versiya)
    ============================================================ */
 
-/* ---------- 1. SUPABASE SOZLAMALARI ---------- */
-const SUPABASE_URL = "https://rcuiyqzgyyidqkqnphou.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjdWl5cXpneXlpZHFrcW5waG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5Nzc4NDgsImV4cCI6MjEwNTU1Mzg0OH0.VGK8nnDxwfnxS8culreffDPJ20Xyg9gf9zZW8mvlgp0";
+/* ---------- 1. SUPABASE (ixtiyoriy) ---------- */
+/* Bu yerga o'z loyihangiz URL va anon key'ini qo'ying.
+   Sozlamasangiz ham ilova to'liq ishlaydi — faqat "Bazaga saqlash"
+   tugmasi xabar ko'rsatadi. */
+const SUPABASE_URL = "https://fexyihehnafbbjqcbehe.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZleHlpaGVobmFmYmJqcWNiZWhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5ODgxMDQsImV4cCI6MjEwNTU2NDEwNH0.cqs-dT64rVoADQAWtBVg-b-Otl9cHQ0dKTf5IVHq3VI";
 
-const supabaseClient =
-    window.supabase && SUPABASE_URL.startsWith("https")
-        ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-        : null;
+let sb = null;
+try {
+    const configured =
+        SUPABASE_URL.startsWith("https://") &&
+        !SUPABASE_URL.includes("SIZNING") &&
+        window.supabase;
+    if (configured) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} catch (e) {
+    console.warn("Supabase ulanmadi:", e);
+}
 
 /* ---------- 2. DOM ---------- */
-const el = (id) => document.getElementById(id);
-const statusLine = el("statusLine");
-const outDistance = el("outDistance");
-const outTime     = el("outTime");
-const outSpeed    = el("outSpeed");
-const outSteps    = el("outSteps");
-const btnStart    = el("btnStart");
-const btnStop     = el("btnStop");
-const btnReset    = el("btnReset");
-const weightInput = el("weightInput");
-const modal       = el("modal");
-const resultGrid  = el("resultGrid");
-const saveMsg     = el("saveMsg");
+const $ = (id) => document.getElementById(id);
+const statusLine  = $("statusLine");
+const outDistance = $("outDistance");
+const outTime     = $("outTime");
+const outSpeed    = $("outSpeed");
+const outSteps    = $("outSteps");
+const btnStart    = $("btnStart");
+const btnStop     = $("btnStop");
+const btnReset    = $("btnReset");
+const weightInput = $("weightInput");
+const modal       = $("modal");
+const modalBox    = $("modalBox");
+const resultGrid  = $("resultGrid");
+const saveMsg     = $("saveMsg");
 
-/* ---------- 3. XARITA ---------- */
-const map = L.map("map", { zoomControl: true }).setView([41.311081, 69.240562], 15);
+function setStatus(txt) { statusLine.textContent = txt; }
+
+/* ---------- 3. Leaflet tekshiruvi ---------- */
+if (typeof L === "undefined") {
+    setStatus("❌ Xarita kutubxonasi (Leaflet) yuklanmadi. Internetni tekshiring.");
+    throw new Error("Leaflet yuklanmagan");
+}
+
+/* ---------- 4. XARITA ---------- */
+const map = L.map("map").setView([41.311081, 69.240562], 13);
 
 L.tileLayer("[{s}.tile.openstreetmap.org](https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png)", {
     maxZoom: 19,
@@ -35,29 +53,27 @@ L.tileLayer("[{s}.tile.openstreetmap.org](https://{s}.tile.openstreetmap.org/{z}
 }).addTo(map);
 
 /* Qatlamlar */
-let trackLine   = null;   // yurilgan yo'l chizig'i
-let meMarker    = null;   // hozirgi joylashuv
+let trackLine = null;
+let meMarker = null;
 let startMarker = null;
 
-/* ---------- 4. HOLAT (STATE) ---------- */
+/* ---------- 5. HOLAT ---------- */
 let watchId = null;
 let tracking = false;
-let points = [];          // { lat, lng, t }
+let points = [];
 let totalMeters = 0;
 let startTime = null;
 let timerInterval = null;
 let stepCount = 0;
+let lastMetrics = null;
 
-/* ---------- 5. YORDAMCHI FUNKSIYALAR ---------- */
-
-/* Haversine — ikki nuqta orasidagi masofa (metr) */
+/* ---------- 6. YORDAMCHI FUNKSIYALAR ---------- */
 function haversine(a, b) {
     const R = 6371000;
     const toRad = (d) => (d * Math.PI) / 180;
     const dLat = toRad(b.lat - a.lat);
     const dLng = toRad(b.lng - a.lng);
-    const h =
-        Math.sin(dLat / 2) ** 2 +
+    const h = Math.sin(dLat / 2) ** 2 +
         Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
     return 2 * R * Math.asin(Math.sqrt(h));
 }
@@ -72,52 +88,72 @@ function fmtTime(sec) {
     return `${m}:${s}`;
 }
 
-function setStatus(txt) { statusLine.textContent = txt; }
-
-/* ---------- 6. JOYLASHUVNI OLISH ---------- */
+/* ---------- 7. JOYLASHUVNI OLISH ---------- */
 function initLocation() {
     if (!navigator.geolocation) {
         setStatus("Brauzeringiz geolokatsiyani qo'llab-quvvatlamaydi.");
         return;
     }
+    setStatus("Joylashuv aniqlanmoqda... (ruxsat so'raladi)");
+
     navigator.geolocation.getCurrentPosition(
         (pos) => {
             const { latitude: lat, longitude: lng, accuracy } = pos.coords;
             map.setView([lat, lng], 17);
-            meMarker = L.marker([lat, lng], { title: "Siz shu yerdasiz" })
-                .addTo(map)
+
+            if (meMarker) map.removeLayer(meMarker);
+            meMarker = L.marker([lat, lng]).addTo(map)
                 .bindPopup("📍 Siz shu yerdasiz<br>Aniqlik: ±" + Math.round(accuracy) + " m")
                 .openPopup();
-            setStatus(`Joylashuv aniqlandi (aniqlik ±${Math.round(accuracy)} m). Boshlash mumkin.`);
+
+            setStatus(`✅ Joylashuv aniqlandi (±${Math.round(accuracy)} m). Boshlash mumkin.`);
             btnStart.disabled = false;
         },
         (err) => {
-            setStatus("Joylashuvni olib bo'lmadi: " + err.message + ". Ruxsatni tekshiring.");
+            let msg;
+            switch (err.code) {
+                case err.PERMISSION_DENIED:
+                    msg = "❌ Joylashuvga ruxsat berilmadi. Manzil satridagi 🔒 belgisidan 'Allow' tanlang va sahifani yangilang.";
+                    break;
+                case err.POSITION_UNAVAILABLE:
+                    msg = "⚠️ Joylashuv mavjud emas. GPS / Windows Location xizmatini yoqing.";
+                    break;
+                case err.TIMEOUT:
+                    msg = "⏱ Joylashuv so'rovi vaqti tugadi. Qayta urinib ko'ring.";
+                    break;
+                default:
+                    msg = "Joylashuv xatosi: " + err.message;
+            }
+            setStatus(msg);
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
 }
 
-/* ---------- 7. YURISHNI BOSHLASH ---------- */
+/* ---------- 8. YURISHNI BOSHLASH ---------- */
 function startTracking() {
     if (tracking) return;
+    if (!navigator.geolocation) { setStatus("Geolokatsiya yo'q."); return; }
 
     tracking = true;
     points = [];
     totalMeters = 0;
     stepCount = 0;
     startTime = Date.now();
+
+    /* Tugmalar holati */
     btnStart.disabled = true;
     btnStop.disabled = false;
     btnReset.disabled = true;
-    setStatus("🟢 Yurish kuzatilmoqda...");
+    setStatus("🟢 Yurish kuzatilmoqda... Yuring!");
 
-    /* chizilgan eski yo'lni tozalash */
+    /* Eski qatlamlarni tozalash */
     if (trackLine) map.removeLayer(trackLine);
     if (startMarker) map.removeLayer(startMarker);
+
     trackLine = L.polyline([], { color: "#22c55e", weight: 5, opacity: 0.9 }).addTo(map);
 
-    /* vaqt taymeri */
+    /* Vaqt taymeri */
     timerInterval = setInterval(() => {
         const sec = (Date.now() - startTime) / 1000;
         outTime.textContent = fmtTime(sec);
@@ -131,33 +167,29 @@ function startTracking() {
     );
 }
 
-/* ---------- 8. HAR YANGI NUQTADA ---------- */
+/* ---------- 9. HAR YANGI NUQTADA ---------- */
 function onPosition(pos) {
-    const { latitude: lat, longitude: lng, accuracy, speed } = pos.coords;
+    if (!tracking) return;
+    const { latitude: lat, longitude: lng } = pos.coords;
     const now = Date.now();
     const newPt = { lat, lng, t: now };
-
     const last = points[points.length - 1];
+
     if (last) {
         const d = haversine(last, newPt);
-        // 3 metrdan kichik siljishlarni (GPS shovqinini) tashlab yuboramiz
-        if (d < 3) return;
+        if (d < 3) return;                 // GPS shovqinini filtrlash
         totalMeters += d;
-
-        // Qadam taxmini: o'rtacha qadam uzunligi ~0.75 m
-        stepCount = Math.round(totalMeters / 0.75);
+        stepCount = Math.round(totalMeters / 0.75);  // o'rtacha qadam ~0.75 m
     }
-
     points.push(newPt);
 
-    /* Xaritani yangilash */
     const latlng = [lat, lng];
+    if (!trackLine) trackLine = L.polyline([], { color: "#22c55e", weight: 5 }).addTo(map);
     trackLine.addLatLng(latlng);
-    if (!meMarker) {
-        meMarker = L.marker(latlng).addTo(map);
-    } else {
-        meMarker.setLatLng(latlng);
-    }
+
+    if (!meMarker) meMarker = L.marker(latlng).addTo(map);
+    else meMarker.setLatLng(latlng);
+
     if (!startMarker && points.length === 1) {
         startMarker = L.circleMarker(latlng, {
             radius: 7, color: "#16a34a", fillColor: "#22c55e", fillOpacity: 1,
@@ -165,7 +197,6 @@ function onPosition(pos) {
     }
     map.panTo(latlng);
 
-    /* Ko'rsatkichlar */
     const sec = (now - startTime) / 1000 || 1;
     const speedKmh = (totalMeters / 1000) / (sec / 3600);
     outDistance.textContent = fmtDistance(totalMeters);
@@ -173,18 +204,13 @@ function onPosition(pos) {
     outSteps.textContent = stepCount.toLocaleString("uz-UZ");
 }
 
-/* ---------- 9. HISOBIY METRIKALAR ---------- */
-/**
- * Kaloriya: MET usuli.
- * Yurish o'rtacha tezligiga qarab MET tanlanadi.
- * kcal = MET × vazn(kg) × vaqt(soat)
- */
+/* ---------- 10. HISOBIY METRIKALAR ---------- */
 function metForSpeed(kmh) {
-    if (kmh < 3.2) return 2.8;   // sekin yurish
-    if (kmh < 4.8) return 3.5;   // o'rtacha
-    if (kmh < 6.4) return 5.0;   // tez yurish
-    if (kmh < 8.0) return 7.0;   // juda tez / yengil yugurish
-    return 8.3;                  // yugurish
+    if (kmh < 3.2) return 2.8;
+    if (kmh < 4.8) return 3.5;
+    if (kmh < 6.4) return 5.0;
+    if (kmh < 8.0) return 7.0;
+    return 8.3;
 }
 
 function computeMetrics() {
@@ -192,21 +218,18 @@ function computeMetrics() {
     const hours = seconds / 3600;
     const weight = parseFloat(weightInput.value) || 70;
     const kmh = hours > 0 ? (totalMeters / 1000) / hours : 0;
-
     const met = metForSpeed(kmh);
-    const kcal = met * weight * hours;
-
-    /* Yog' massasi: ~1 kg yog' ≈ 7700 kcal */
-    const fatGrams = (kcal / 7700) * 1000;
+    const kcal = met * weight * hours;             // kcal = MET × kg × soat
+    const fatGrams = (kcal / 7700) * 1000;         // 1 kg yog' ≈ 7700 kcal
 
     return {
-        seconds, kmh, met, kcal: Math.round(kcal),
+        seconds, kmh, met,
+        kcal: Math.round(kcal),
         fatGrams: Math.round(fatGrams * 10) / 10,
         weight, meters: totalMeters, steps: stepCount,
     };
 }
 
-/* Yurak uchun foyda matni — tezlikka qarab */
 function heartBenefit(kmh, minutes) {
     const lines = [];
     if (minutes < 5) {
@@ -215,7 +238,7 @@ function heartBenefit(kmh, minutes) {
         lines.push("Yurak-qon tomir tizimi chidamliligi oshadi.");
     }
     if (kmh >= 4.8) {
-        lines.push("Tez yurish yurak urish tezligini foydali zonaga olib chiqadi (yurak mashqi).");
+        lines.push("Tez yurish yurak urish tezligini foydali zonaga olib chiqadi.");
         lines.push("Qon bosimini me'yorlashtirishga va xolesterinni kamaytirishga yordam beradi.");
     } else {
         lines.push("Tinch sur'atda yurish ham yurak uchun xavfsiz va foydali yuklama.");
@@ -224,13 +247,15 @@ function heartBenefit(kmh, minutes) {
     return lines;
 }
 
-/* ---------- 10. YURISHNI TUGATISH ---------- */
+/* ---------- 11. YURISHNI TUGATISH ---------- */
 function stopTracking() {
     if (!tracking) return;
     tracking = false;
 
     if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
     clearInterval(timerInterval);
+    timerInterval = null;
+
     btnStart.disabled = false;
     btnStop.disabled = true;
     btnReset.disabled = false;
@@ -240,9 +265,7 @@ function stopTracking() {
     showResult(m);
 }
 
-/* ---------- 11. NATIJANI KO'RSATISH ---------- */
-let lastMetrics = null;
-
+/* ---------- 12. NATIJANI KO'RSATISH ---------- */
 function showResult(m) {
     lastMetrics = m;
     const minutes = Math.floor(m.seconds / 60);
@@ -269,9 +292,9 @@ function showResult(m) {
       <div class="r-value">${m.fatGrams} g</div>
       <div class="r-note">≈ 1 kg yog' = 7700 kcal</div>
     </div>
-    <div class="result-card" style="grid-column: 1 / -1;">
+    <div class="result-card" style="grid-column:1/-1;">
       <div class="r-label">❤️ Yurak uchun foyda</div>
-      <div class="r-note" style="font-size:0.85rem; line-height:1.6; margin-top:6px;">
+      <div class="r-note" style="font-size:0.85rem;line-height:1.6;margin-top:6px;">
         ${benefitLines.map((l) => "• " + l).join("<br>")}
       </div>
     </div>
@@ -279,23 +302,21 @@ function showResult(m) {
 
     drawShareCard(m, benefitLines);
     saveMsg.textContent = "";
-    modal.hidden = false;
+    modal.classList.add("is-open");     // ✅ sinf bilan ochish
 }
 
-/* ---------- 12. RASMGA CHIZISH (share card) ---------- */
+/* ---------- 13. RASMGA CHIZISH ---------- */
 function drawShareCard(m, benefitLines) {
-    const c = el("shareCanvas");
+    const c = $("shareCanvas");
     const ctx = c.getContext("2d");
     const W = c.width, H = c.height;
 
-    /* Fon */
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, "#0f172a");
     grad.addColorStop(1, "#1e293b");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
-    /* Sarlavha */
     ctx.fillStyle = "#22c55e";
     ctx.font = "bold 54px system-ui, sans-serif";
     ctx.textAlign = "center";
@@ -305,7 +326,6 @@ function drawShareCard(m, benefitLines) {
     ctx.font = "32px system-ui, sans-serif";
     ctx.fillText(new Date().toLocaleDateString("uz-UZ"), W / 2, 165);
 
-    /* Asosiy metrikalar */
     const cards = [
         ["Masofa", fmtDistance(m.meters)],
         ["Vaqt", fmtTime(m.seconds)],
@@ -317,13 +337,13 @@ function drawShareCard(m, benefitLines) {
 
     const cardW = 430, cardH = 150, gap = 30;
     const startX = (W - (cardW * 2 + gap)) / 2;
-    let y = 230;
+    const y0 = 230;
 
     cards.forEach((item, i) => {
         const col = i % 2;
         const row = Math.floor(i / 2);
         const x = startX + col * (cardW + gap);
-        const cy = y + row * (cardH + gap);
+        const cy = y0 + row * (cardH + gap);
 
         ctx.fillStyle = "#273449";
         roundRect(ctx, x, cy, cardW, cardH, 22);
@@ -339,8 +359,7 @@ function drawShareCard(m, benefitLines) {
         ctx.fillText(item[1], x + 30, cy + 118);
     });
 
-    /* Yurak foydasi bloki */
-    const by = y + 3 * (cardH + gap) + 10;
+    const by = y0 + 3 * (cardH + gap) + 10;
     ctx.fillStyle = "#273449";
     roundRect(ctx, startX, by, cardW * 2 + gap, 300, 22);
     ctx.fill();
@@ -356,7 +375,6 @@ function drawShareCard(m, benefitLines) {
         wrapText(ctx, "• " + line, startX + 30, by + 105 + i * 46, cardW * 2 + gap - 60, 34);
     });
 
-    /* Pastgi imzo */
     ctx.fillStyle = "#64748b";
     ctx.font = "24px system-ui, sans-serif";
     ctx.textAlign = "center";
@@ -389,19 +407,19 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
     ctx.fillText(line.trim(), x, y);
 }
 
-/* ---------- 13. RASMNI YUKLAB OLISH ---------- */
-el("btnDownload").addEventListener("click", () => {
-    const c = el("shareCanvas");
+/* ---------- 14. RASMNI YUKLAB OLISH ---------- */
+$("btnDownload").addEventListener("click", () => {
+    const c = $("shareCanvas");
     const a = document.createElement("a");
     a.download = `yurish-${new Date().toISOString().slice(0, 10)}.png`;
     a.href = c.toDataURL("image/png");
     a.click();
 });
 
-/* ---------- 14. SUPABASE'GA SAQLASH ---------- */
+/* ---------- 15. SUPABASE'GA SAQLASH ---------- */
 async function saveToDatabase() {
-    if (!supabaseClient) {
-        saveMsg.textContent = "⚠️ Supabase sozlamalari kiritilmagan (app.js faylida URL va KEY).";
+    if (!sb) {
+        saveMsg.textContent = "⚠️ Supabase sozlanmagan (app.js'da URL va KEY kiriting).";
         return;
     }
     if (!lastMetrics) return;
@@ -419,27 +437,21 @@ async function saveToDatabase() {
         calories_kcal: m.kcal,
         fat_grams: m.fatGrams,
         heart_note: heartBenefit(m.kmh, Math.floor(m.seconds / 60)).join(" "),
-        route: points,            // jsonb: [{lat,lng,t}, ...]
+        route: points,
     };
 
     saveMsg.textContent = "Saqlanmoqda...";
-
-    const { error } = await supabaseClient.from("walks").insert(row);
-
-    saveMsg.textContent = error
-        ? "❌ Xatolik: " + error.message
-        : "✅ Ma'lumot bazaga saqlandi.";
+    const { error } = await sb.from("walks").insert(row);
+    saveMsg.textContent = error ? "❌ Xatolik: " + error.message : "✅ Ma'lumot bazaga saqlandi.";
 }
 
-/* ---------- 15. TUGMALAR ---------- */
+/* ---------- 16. TUGMALAR ---------- */
 btnStart.addEventListener("click", startTracking);
 btnStop.addEventListener("click", stopTracking);
 
 btnReset.addEventListener("click", () => {
     if (tracking) return;
-    points = [];
-    totalMeters = 0;
-    stepCount = 0;
+    points = []; totalMeters = 0; stepCount = 0;
     if (trackLine) { map.removeLayer(trackLine); trackLine = null; }
     if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
     outDistance.textContent = "0 m";
@@ -449,9 +461,19 @@ btnReset.addEventListener("click", () => {
     setStatus("Tozalandi. Boshlash mumkin.");
 });
 
-el("btnSave").addEventListener("click", saveToDatabase);
-el("btnClose").addEventListener("click", () => { modal.hidden = true; });
+$("btnClose").addEventListener("click", () => modal.classList.remove("is-open"));
 
-/* ---------- 16. ISHGA TUSHIRISH ---------- */
-btnStart.disabled = true;
+/* Backdrop'ni bosganda ham yopiladi (modalBox ichini bosganda emas) */
+modal.addEventListener("click", (e) => {
+    if (e.target === modal) modal.classList.remove("is-open");
+});
+
+/* ESC tugmasi bilan yopish */
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") modal.classList.remove("is-open");
+});
+
+$("btnSave").addEventListener("click", saveToDatabase);
+
+/* ---------- 17. ISHGA TUSHIRISH ---------- */
 initLocation();

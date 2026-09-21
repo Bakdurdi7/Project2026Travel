@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Sayohat Kuzatuvchi</title>
 
-    <!-- ✅ Leaflet CSS — TOZA URL -->
-    <link rel="stylesheet"
-          href="[unpkg.com](https://unpkg.com/leaflet@1.9.4/dist/leaflet.css)"
-          crossorigin="" />
-
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -40,7 +36,7 @@
         </div>
 
         <div class="controls">
-            <button id="btnStart" class="btn btn-start">▶ Boshlash</button>
+            <button id="btnStart" class="btn btn-start" disabled>▶ Boshlash</button>
             <button id="btnStop" class="btn btn-stop" disabled>■ Tugatish</button>
             <button id="btnReset" class="btn btn-ghost">↺ Tozalash</button>
         </div>
@@ -50,8 +46,8 @@
             <input type="number" id="weightInput" value="70" min="25" max="250" step="0.5" />
         </label>
 
-        <p class="hint" id="hint">
-            GPS aniqligi uchun ochiq havoda va brauzerda joylashuvga ruxsat berilgan bo'lishi kerak.
+        <p class="hint">
+            GPS ochiq havoda aniqroq ishlaydi. Brauzerda joylashuvga ruxsat berilgan bo'lishi kerak.
         </p>
     </section>
 
@@ -60,8 +56,9 @@
     </section>
 </main>
 
-<div class="modal-backdrop" id="modal" hidden>
-    <div class="modal">
+<!-- Natija modali: hidden YO'Q, .is-open sinfi bilan boshqariladi -->
+<div class="modal-backdrop" id="modal">
+    <div class="modal" id="modalBox">
         <h2>🎯 Yurish natijasi</h2>
         <div id="resultGrid" class="result-grid"></div>
 
@@ -76,11 +73,9 @@
     </div>
 </div>
 
-<!-- ✅ Leaflet JS — TOZA URL -->
-<script src="[unpkg.com](https://unpkg.com/leaflet@1.9.4/dist/leaflet.js)" crossorigin=""></script>
-
-<!-- ✅ Supabase JS — TO'G'RI URL -->
-<script src="[cdn.jsdelivr.net](https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2)"></script>
+<!-- Kutubxonalar: TOZA havolalar, app.js'DAN OLDIN -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 <script src="js/app.js"></script>
 </body>
